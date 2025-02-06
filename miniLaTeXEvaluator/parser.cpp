@@ -3,7 +3,7 @@
 #include <unordered_set>
 #include <cctype>
 #include "ast.hpp"
-#include "aux.hpp"
+#include "utils.hpp"
 
 // Exponentiation with right associativity
 std::unordered_map<std::string, int> precedence = {
