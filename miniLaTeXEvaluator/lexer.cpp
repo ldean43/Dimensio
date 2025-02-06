@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <unordered_set>
 #include "ast.hpp"
-#include "aux.hpp"
+#include "utils.hpp"
 
 const static std::unordered_set<std::string> validCommands = {
     "sin", "cos", "tan", "csc", "sec", "cot",
