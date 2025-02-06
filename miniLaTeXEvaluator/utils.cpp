@@ -1,4 +1,4 @@
-#include "aux.hpp"
+#include "utils.hpp"
 
 bool isDouble(std::string str) {
     bool hasDecimal = false;
