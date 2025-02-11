@@ -47,6 +47,6 @@ class Parser {
         void parseExpr();
 
     public:
-        Parser(std::vector<std::string> tokens);
+        Parser(std::vector<std::string>& tokens);
         Expr* parse();
 };

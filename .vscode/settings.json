@@ -84,5 +84,18 @@
         "xstring": "cpp",
         "xtr1common": "cpp",
         "xutility": "cpp"
+    },
+    "terminal.integrated.shell.windows": "C:\\Program Files\\Git\\bin\\bash.exe",
+    "terminal.integrated.shellArgs.windows": ["--login"],
+    "terminal.integrated.env.windows": {
+        "CHERE_INVOKING": "1",
+        "MSYS2_PATH_TYPE": "inherit"
+    },
+    "terminal.integrated.defaultProfile.windows": "Git Bash",
+    "terminal.integrated.profiles.windows": {
+    "Git Bash": {
+      "path": "C:\\Program Files\\Git\\bin\\bash.exe",
+      "args": ["--login"]
     }
+  }
 }

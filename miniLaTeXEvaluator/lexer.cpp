@@ -18,31 +18,13 @@ const static std::unordered_set<char> validSymbols = {
 // Retokenizes for cases with implicit multiplication i.e. 5(2), 5x
 std::vector<std::string> implicitMult(std::vector<std::string> tokens) {
     std::vector<std::string> newTokens;
-    bool currOperand, nextOperand;
+    auto it = tokens.begin();
+    std::string tok = *it;
+    std::string prevTok = nullptr;
     
-    for (size_t i = 0; i < tokens.size(); i++) {
-        newTokens.push_back(tokens[i]);
-        currOperand = false;
-        nextOperand = false;
+    while(it != tokens.end()) {
+        newTokens.push_back(tok);
         
-        if (i < tokens.size() - 1) {
-            // Number can be followed by var, paren, or command
-            if (isDouble(tokens[i])) {
-                currOperand = true;
-                nextOperand = (isVar(tokens[i + 1]) || tokens[i + 1] == "(" || 
-                              (validCommands.count(tokens[i + 1]) && tokens[i + 1] != "right|"));
-            // Var, paren, command can be followed by everything else
-            } else if (isVar(tokens[i]) || tokens[i] == ")" || 
-                      (validCommands.count(tokens[i]) && tokens[i + 1] != "left|")) {
-                currOperand = true;
-                nextOperand = (isDouble(tokens[i]) || isVar(tokens[i]) || tokens[i] == "(" || 
-                              (validCommands.count(tokens[i + 1]) && tokens[i + 1] != "right|"));
-            }
-            // If valid combination, place * between
-            if (currOperand && nextOperand) {
-                newTokens.push_back("*");
-            }
-        }
     }
     return newTokens;
 }

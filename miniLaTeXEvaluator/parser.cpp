@@ -6,13 +6,12 @@
 // Recursive descent parser using stacks to create ast from infix expression
 
 void Parser::advance() {
-    if (it != end) {
+    if (it != (end - 1)) {
         it++;
         prevTok = tok;
         tok = *it;
-    } else {
-        prevTok = *end;
     }
+    return;
 }
 
 void Parser::match(std::string op, std::string expected) {
@@ -71,16 +70,19 @@ void Parser::popOp() {
         Expr* e = popUnary(op);
         operands.push(new Trig(op, e));
     }
+    return;
 }
 
 void Parser::parseNum() {
     operands.push(new Num(stod(tok)));
     advance();
+    return;
 }
 
 void Parser::parseVar() {
     operands.push(new Var(tok));
     advance();
+    return;
 }
 
 void Parser::parseOp() {
@@ -91,6 +93,7 @@ void Parser::parseOp() {
     }
     ops.push(tok);
     advance();
+    return;
 }
 
 void Parser::parseFrac() {
@@ -112,6 +115,7 @@ void Parser::parseFrac() {
     // Check for matching }
     match("frac", "}");
     advance();
+    return;
 }
 
 void Parser::parseSqrt() {
@@ -137,6 +141,7 @@ void Parser::parseSqrt() {
     // Check for matching }
     match("sqrt", "}");
     advance();
+    return;
 }
 
 void Parser::parseLog() {
@@ -165,6 +170,7 @@ void Parser::parseLog() {
     // Check for matching }
     match("log", "}");
     advance();
+    return;
 }
 
 void Parser::parseLnLg() {
@@ -180,6 +186,7 @@ void Parser::parseLnLg() {
     // Check for matching }
     match(func, "}");
     advance();
+    return;
 }
 
 void Parser::parseAbs() {
@@ -190,6 +197,7 @@ void Parser::parseAbs() {
     // Check for required left|
     match("absolute value", "left|");
     advance();
+    return;
 }
 
 void Parser::parseTrig() {
@@ -210,11 +218,13 @@ void Parser::parseTrig() {
         advance();
         parseExpr();
         match(func, ")");
+        parseParens();
         advance();
     } else {
         throw std::runtime_error
         ("parsing error: expected { or ( after " + func);
     }
+    return;
 }
 
 void Parser::parseParens() {
@@ -222,23 +232,36 @@ void Parser::parseParens() {
         while (!ops.empty() && ops.top() != "(") {
             popOp();
         }
-        match("parens", "(");
+        if (ops.top() != "(") {
+            throw std::runtime_error("parsing error: mismatched parens");
+        }
+        ops.pop();
     } else if (tok == "}") {
         while (!ops.empty() && ops.top() != "{") {
             popOp();
         }
-        match("braces", "{");
+        if (ops.top() != "{") {
+            throw std::runtime_error("parsing error: mismatched braces");
+        }
+        ops.pop();
     } else if (tok == "]") {
         while (!ops.empty() && ops.top() != "[") {
             popOp();
         }
-        match("brackets", "[");
-    } else if (tok == "left|") {
-        while (!ops.empty() && ops.top() != "right|") {
+        if (ops.top() != "[") {
+            throw std::runtime_error("parsing error: mismatched brackets");
+        }
+        ops.pop();
+    } else if (tok == "right|") {
+        while (!ops.empty() && ops.top() != "left|") {
             popOp();
         }
-        match("absolute value", "right|");
+        if (ops.top() != "left|") {
+            throw std::runtime_error("parsing error: mismatched left|");
+        }
+        ops.pop();
     }
+    return;
 }
 
 void Parser::parseExpr() {
@@ -264,13 +287,18 @@ void Parser::parseExpr() {
     return;
 }
 
-Parser::Parser(std::vector<std::string> tokens) : it(tokens.begin()),
-end(tokens.end()) {}
+Parser::Parser(std::vector<std::string>& tokens) : it(tokens.begin()),
+end(tokens.end()) {
+    tok = *it;
+}
 
 Expr* Parser::parse() {
-    parseExpr();
-    while (!ops.empty()) {
-        popOp();
+    if (!parsed) {
+        parseExpr();
+        while (!ops.empty()) {
+            popOp();
+        }
+        parsed = true;
     }
     return operands.top();
 }

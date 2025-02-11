@@ -39,6 +39,7 @@
 
 struct Expr {
     // base expr struct for inheritance
+	
 };
 
 struct Equation {
