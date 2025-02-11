@@ -1,5 +1,6 @@
 #include "ast.hpp"
 #include "utils.hpp"
+#include "lexer.hpp"
 #include <stdexcept>
 #include <unordered_set>
 
@@ -22,14 +23,21 @@ std::vector<std::string> implicitMult(std::vector<std::string> tokens) {
     std::string tok = *it;
     std::string prevTok = nullptr;
     
-    while(it != tokens.end()) {
+    while(it != (tokens.end() - 1)) {
         newTokens.push_back(tok);
-        
+        if (isDouble(tok)) {
+            tok = *(it++);
+            if (tok == "{") {
+                while (it != (tokens.end() - 1) && tok == "{") {
+                    tok = *(it++);
+                }
+            }
+        }
     }
     return newTokens;
 }
 
-std::vector<std::string> lex(std::string input) {
+std::vector<std::string> Lexer::lexHelper() {
     std::vector<std::string> tokens;
     std::string command;
     size_t currIndex = 0;

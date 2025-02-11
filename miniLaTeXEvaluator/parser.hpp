@@ -10,6 +10,7 @@ class Parser {
         std::stack<std::string> ops;
         std::vector<std::string>::iterator it, end;
         std::string tok, prevTok;
+        bool parsed = false;
 
         static const std::unordered_map<std::string, int> precedence;
         static const std::unordered_set<std::string> trig;
