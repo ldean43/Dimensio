@@ -3,7 +3,7 @@ CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -g
 
 # Directories
-SRC_DIR = miniLatexProcessor
+SRC_DIR = miniLaTeXEvaluator
 BUILD_DIR = build
 
 # Source files and objects

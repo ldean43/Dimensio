@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include <vector>
-#include <stack>
 
 /*	Grammar
 	eq ::=
@@ -113,19 +112,17 @@ struct Trig : public Expr {
     Trig(std::string func, Expr* e) : func(func), e(e) {}
 };
 
-struct Implicit {
+struct Implicit : public Equation {
 	Expr* e1;
 	Expr* e2;
 
     Implicit(Expr* e1, Expr* e2) : e1(e1), e2(e2) {}
 };
 
-struct Parametric {
+struct Parametric : public Equation {
 	Expr* x;
 	Expr* y;
 	Expr* z;
 
     Parametric(Expr* x, Expr* y, Expr* z) {}
 };
-
-std::vector<std::string> lex(std::string input);

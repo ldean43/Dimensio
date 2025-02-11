@@ -1,9 +1,7 @@
-#include <cstdlib>
-#include <cctype>
-#include <stdexcept>
-#include <unordered_set>
 #include "ast.hpp"
 #include "utils.hpp"
+#include <stdexcept>
+#include <unordered_set>
 
 const static std::unordered_set<std::string> validCommands = {
     "sin", "cos", "tan", "csc", "sec", "cot",
@@ -31,17 +29,14 @@ std::vector<std::string> implicitMult(std::vector<std::string> tokens) {
             // Number can be followed by var, paren, or command
             if (isDouble(tokens[i])) {
                 currOperand = true;
-                nextOperand = (isVar(tokens[i + 1]) || tokens[i + 1] == "("
-                || (validCommands.count(tokens[i + 1])
-                && tokens[i + 1] != "right|"));
+                nextOperand = (isVar(tokens[i + 1]) || tokens[i + 1] == "(" || 
+                              (validCommands.count(tokens[i + 1]) && tokens[i + 1] != "right|"));
             // Var, paren, command can be followed by everything else
-            } else if (isVar(tokens[i]) || tokens[i] == ")"
-                || (validCommands.count(tokens[i])
-                && tokens[i + 1] != "left|")) {
+            } else if (isVar(tokens[i]) || tokens[i] == ")" || 
+                      (validCommands.count(tokens[i]) && tokens[i + 1] != "left|")) {
                 currOperand = true;
-                nextOperand = (isDouble(tokens[i]) || isVar(tokens[i])
-                || tokens[i] == "(" || (validCommands.count(tokens[i + 1])
-                && tokens[i + 1] != "right|"));
+                nextOperand = (isDouble(tokens[i]) || isVar(tokens[i]) || tokens[i] == "(" || 
+                              (validCommands.count(tokens[i + 1]) && tokens[i + 1] != "right|"));
             }
             // If valid combination, place * between
             if (currOperand && nextOperand) {

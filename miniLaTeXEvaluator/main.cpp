@@ -1,17 +1,25 @@
+#include "parser.hpp"
+#include "lexer.hpp"
 #include <iostream>
-#include "ast.hpp"
 
 int main() {
     std::string input;
     std::vector<std::string> tokens;
-    std::cin.clear();
-    while(std::cin) {
-        getline(std::cin, input);
+
+    std::cout << "Enter input (Ctrl+D to end on Unix-like systems, Ctrl+Z followed by Enter to end on Windows):" << std::endl;
+
+    while (true) {
+        std::cout << "> ";
+        if (!getline(std::cin, input)) {
+            break; // Exit the loop if input fails (e.g., EOF)
+        }
+
         tokens = lex(input);
-        for (auto i = tokens.begin(); i != tokens.end(); i++) {
-            std::cout << *i << "\n";
+        for (const auto& token : tokens) {
+            std::cout << token << "\n";
         }
         std::cout.flush();
     }
+
     return 0;
 }

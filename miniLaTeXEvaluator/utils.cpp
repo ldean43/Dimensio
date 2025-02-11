@@ -23,16 +23,3 @@ bool isVar(std::string str) {
     }
     return false;
 }
-
-void mismatchError(std::string op, std::string delim) {
-    if (delim == "{" || delim == "}") {
-        throw std::runtime_error
-        ("parsing error: " + op + " mismatched brace");
-    } else if (delim == "[" || delim == "]") {
-        throw std::runtime_error
-        ("parsing error: " + op + " mismatched bracket");
-    } else if (delim == "(" || delim == ")") {
-        throw std::runtime_error
-        ("parsing error: " + op + " mismatched paren");
-    }
-}

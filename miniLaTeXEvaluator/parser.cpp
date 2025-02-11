@@ -1,12 +1,282 @@
-#include <stack>
-#include <unordered_map>
-#include <unordered_set>
-#include <cctype>
 #include "ast.hpp"
 #include "utils.hpp"
+#include "parser.hpp"
+#include <stdexcept>
+
+// Recursive descent parser using stacks to create ast from infix expression
+
+void Parser::advance() {
+    if (it != end) {
+        it++;
+        prevTok = tok;
+        tok = *it;
+    } else {
+        prevTok = *end;
+    }
+}
+
+void Parser::match(std::string op, std::string expected) {
+    if (tok != expected) {
+        throw std::runtime_error("parsing error: expected " + expected + " after " + prevTok + " in " + op);
+    }
+}
+
+// Reapted code for unary functions
+Expr* Parser::popUnary (std::string op) {
+    if (operands.size() < 1) {
+        throw std::runtime_error("parsing error: insufficent arguments for " + op);
+    }
+    Expr* e = operands.top();
+    operands.pop();
+    ops.pop();
+    return e;
+}
+
+// Repeated code for binary functions and operations
+std::pair<Expr*, Expr*> Parser::popBinary(std::string op) {
+    if (operands.size() < 2) {
+        throw std::runtime_error("parsing error: insufficent arguments for " + op);
+    }
+    Expr* e2 = operands.top();
+    operands.pop();
+    Expr* e1 = operands.top();
+    operands.pop();
+    ops.pop();
+    return {e1, e2};
+}
+
+// pops functions and operators off of ops stack and onto operands
+void Parser::popOp() {
+    std::string op = ops.top();
+
+    if (op == "+" || op == "-" || op == "*" || op == "/" || op == "^") {
+        auto e = popBinary(op);
+        operands.push(new Op(op[0], e.first, e.second));
+    } else if (op == "frac") {
+        auto e = popBinary(op);
+        operands.push(new Frac(e.first, e.second));
+    } else if (op == "sqrt") {
+        auto e = popBinary(op);
+        operands.push(new Sqrt(e.first, e.second));
+    } else if (op == "log") {
+        auto e = popBinary(op);
+        operands.push(new Log(e.first, e.second));
+    } else if (op == "ln") {
+        Expr* e = popUnary(op);
+        operands.push(new Ln(e));
+    } else if (op == "lg") {
+        Expr* e = popUnary(op);
+        operands.push(new Lg(e));
+    } else if (trig.count(op)) {
+        Expr* e = popUnary(op);
+        operands.push(new Trig(op, e));
+    }
+}
+
+void Parser::parseNum() {
+    operands.push(new Num(stod(tok)));
+    advance();
+}
+
+void Parser::parseVar() {
+    operands.push(new Var(tok));
+    advance();
+}
+
+void Parser::parseOp() {
+    while (!ops.empty() &&
+            (precedence.at(ops.top()) > precedence.at(tok) ||
+            (precedence.at(ops.top()) == precedence.at(tok) && tok != "^"))) {
+        popOp();
+    }
+    ops.push(tok);
+    advance();
+}
+
+void Parser::parseFrac() {
+    // Push frac onto ops stack
+    ops.push(tok);
+    advance();
+    // Check for required {, parse numerator
+    match("frac", "{");
+    ops.push(tok);
+    advance();
+    parseExpr();
+    // Check for matching }
+    match("frac", "}");
+    advance();
+    // Check for required {, parse demoninator
+    match("frac", "{");
+    ops.push(tok);
+    parseExpr();
+    // Check for matching }
+    match("frac", "}");
+    advance();
+}
+
+void Parser::parseSqrt() {
+    // Push sqrt onto ops stack
+    ops.push(tok);
+    advance();
+    // Check for optional root
+    if (tok != "[") {
+        operands.push(new Num(2)); // if no custom root, choose 2
+    // Check for [, parse arbitrary root
+    } else {
+        ops.push(tok);
+        advance();
+        parseExpr();
+        match("sqrt", "]");
+        advance();
+    }
+    // Check for required {, parse argument
+    match("sqrt", "{");
+    ops.push(tok);
+    advance();
+    parseExpr();
+    // Check for matching }
+    match("sqrt", "}");
+    advance();
+}
+
+void Parser::parseLog() {
+    // Push log onto stack
+    ops.push(tok);
+    advance();
+    // Check for optional base
+    if (tok != "_") { 
+        operands.push(new Num(10)); // Implicit base 10 log
+    } else {
+        advance();
+        // Check for required {, parse arbitrary base
+        match("log", "{");
+        ops.push(tok);
+        advance();
+        parseExpr();
+        // Check for matching }
+        match("log", "}");
+        advance();
+    }
+    // Check for required {, parse argument
+    match("log", "{");
+    ops.push(tok);
+    advance();
+    parseExpr();
+    // Check for matching }
+    match("log", "}");
+    advance();
+}
+
+void Parser::parseLnLg() {
+    std::string func = tok;
+    // Push ln/log onto stack
+    ops.push(tok);
+    advance();
+    // Check for required {, parse argument
+    match(func, "{");
+    ops.push(tok);
+    advance();
+    parseExpr();
+    // Check for matching }
+    match(func, "}");
+    advance();
+}
+
+void Parser::parseAbs() {
+    // Push right| onto stack
+    ops.push(tok);
+    advance();
+    parseExpr();
+    // Check for required left|
+    match("absolute value", "left|");
+    advance();
+}
+
+void Parser::parseTrig() {
+    std::string func = tok;
+    // Push trig func onto ops stack
+    ops.push(func);
+    advance();
+    // Check for {, parse argument
+    if (tok == "{") {
+        ops.push(tok);
+        advance();
+        parseExpr();
+        match(func, "}");
+        advance();
+    // Check for (, parse argument
+    } else if (tok == "(") {
+        ops.push(tok);
+        advance();
+        parseExpr();
+        match(func, ")");
+        advance();
+    } else {
+        throw std::runtime_error
+        ("parsing error: expected { or ( after " + func);
+    }
+}
+
+void Parser::parseParens() {
+    if (tok == ")") {
+        while (!ops.empty() && ops.top() != "(") {
+            popOp();
+        }
+        match("parens", "(");
+    } else if (tok == "}") {
+        while (!ops.empty() && ops.top() != "{") {
+            popOp();
+        }
+        match("braces", "{");
+    } else if (tok == "]") {
+        while (!ops.empty() && ops.top() != "[") {
+            popOp();
+        }
+        match("brackets", "[");
+    } else if (tok == "left|") {
+        while (!ops.empty() && ops.top() != "right|") {
+            popOp();
+        }
+        match("absolute value", "right|");
+    }
+}
+
+void Parser::parseExpr() {
+    if (isDouble(tok)) {
+        parseNum();
+    } else if (isVar(tok)) {
+        parseVar();
+    } else if (tok == "+" || tok == "-" || tok == "*" || tok == "/" || tok == "^") {
+        parseOp();
+    } else if (tok == "frac") {
+        parseFrac();
+    } else if (tok == "sqrt") {
+        parseSqrt();
+    } else if (tok == "log") {
+        parseLog();
+    } else if (tok == "ln" || tok == "lg") {
+        parseLnLg();
+    } else if (trig.count(tok)) {
+        parseTrig();
+    } else if (tok == ")" || tok == "}" || tok == "]" || tok == "left|") {
+        parseParens();
+    }
+    return;
+}
+
+Parser::Parser(std::vector<std::string> tokens) : it(tokens.begin()),
+end(tokens.end()) {}
+
+Expr* Parser::parse() {
+    parseExpr();
+    while (!ops.empty()) {
+        popOp();
+    }
+    return operands.top();
+}
 
 // Exponentiation with right associativity
-std::unordered_map<std::string, int> precedence = {
+const std::unordered_map<std::string, int> Parser::precedence = {
     {"sin", 4}, {"cos", 4}, {"tan", 4}, {"csc", 4}, {"sec", 4}, {"cot", 4},
     {"arcsin", 4}, {"arccos", 4}, {"arctan", 4}, {"arcsec", 4}, {"arccsc", 4}, 
     {"arccot", 4}, {"sinh", 4}, {"cosh", 4}, {"tanh", 4}, {"frac", 4}, 
@@ -14,268 +284,8 @@ std::unordered_map<std::string, int> precedence = {
     {"+", 1}, {"-", 1}
 };
 
-std::unordered_set<std::string> trig = {
+const std::unordered_set<std::string> Parser::trig = {
     "sin", "cos", "tan", "csc", "sec", "cot",
     "arcsin", "arccos", "arctan", "arcsec",
     "arccsc", "arccot", "sinh", "cosh", "tanh"
-};
-
-// Recursive descent parser using stacks to create ast from infix expression
-class Parser {
-    private:
-        std::stack<Expr*> operands;
-        std::stack<std::string> ops;
-        std::vector<std::string>::iterator it;
-        std::vector<std::string>::iterator end;
-        std::string tok;
-
-        void advance() {
-            if (it != end) {
-                it++;
-                tok = *it;
-            } else {
-                throw std::runtime_error("parsing error: insufficient arguments");
-            }
-        }
-
-        // Reapted code for unary functions
-        Expr** popUnary () {
-            Expr** e = (Expr**) malloc(sizeof(Expr*));
-            if (operands.size() < 1) {
-                throw std::runtime_error("parsing error: insufficent arguments");
-            }
-            *e = operands.top();
-            operands.pop();
-            ops.pop();
-            return e;
-        }
-
-        // Repeated code for binary functions and operations
-        Expr** popBinary() {
-            Expr** e = (Expr**) malloc(2*sizeof(Expr*));
-            if (operands.size() < 2) {
-                throw std::runtime_error("parsing error: insufficent arguments");
-            }
-            e[1] = operands.top();
-            operands.pop();
-            e[0] = operands.top();
-            operands.pop();
-            ops.pop();
-            return e;
-        }
-
-        // pops functions and operators off of ops stack and onto operands
-        void popOp() {
-            std::string op = ops.top();
-            Expr** e;
-
-            if (op == "+" || op == "-" || op == "*" || op == "/" || op == "^") {
-                e = popBinary();
-                operands.push(new Op(op[0], e[0], e[1]));
-            } else if (trig.count(op)) {
-                e = popUnary();
-                operands.push(new Trig(op, e[0]));
-            } else if (op == "frac") {
-                e = popBinary();
-                operands.push(new Frac(e[0], e[1]));
-            } else if (op == "sqrt") {
-                e = popBinary();
-                operands.push(new Sqrt(e[0], e[1]));
-            } else if (op == "ln") {
-                e = popUnary();
-                operands.push(new Ln(e[0]));
-            } else if (op == "lg") {
-                e = popUnary();
-                operands.push(new Lg(e[0]));
-            } else if (op == "log") {
-                e = popBinary();
-                operands.push(new Log(e[0], e[1]));
-            }
-            free(e);
-        }
-
-        void parseNum() {
-            operands.push(new Num(stod(tok)));
-            advance();
-        }
-
-        void parseVar() {
-            operands.push(new Var(tok));
-            advance();
-        }
-
-        void parseOp() {
-            while (precedence.at(ops.top()) > precedence.at(tok)
-            || (precedence.at(ops.top()) == precedence.at(tok)
-                && tok != "^")) {
-            }
-        }
-
-        void parseFrac() {
-            // Push frac onto ops stack
-            ops.push(tok);
-            advance();
-            // Check for required {, parse numerator
-            if (tok != "{") { mismatchError("frac", "{"); }
-            ops.push(tok);
-            advance();
-            parseExpr();
-            // Check for matching }
-            if (tok != "}") { mismatchError("frac", "}"); }
-            advance();
-            // Check for required {, parse demoninator
-            if (tok != "{") { mismatchError("frac", "{"); }
-            ops.push(tok);
-            parseExpr();
-            // Check for matching }
-            if (tok != "}") { mismatchError("frac", "}");}
-            advance();
-        }
-
-        void parseTrig() {
-            // Push trig func onto ops stack
-            ops.push(tok);
-            advance();
-            // Check for {, parse argument
-            if (tok == "{") {
-                ops.push(tok);
-                advance();
-                parseExpr();
-                if (tok !=  "}") { mismatchError("trig", "}"); }
-                advance();
-            // Check for (, parse argument
-            } else if (tok == "(") {
-                ops.push(tok);
-                advance();
-                parseExpr();
-                if (tok !=  ")") { mismatchError("trig", ")"); }
-                advance();
-            } else {
-                throw std::runtime_error
-                ("parsing error: " + ops.top() + " invalid syntax");
-            }
-        }
-
-        void parseSqrt() {
-            // Push sqrt onto ops stack
-            ops.push(tok);
-            advance();
-            // Check for optional root
-            if (tok != "[") {
-                operands.push(new Num(2)); // if no custom root, choose 2
-            // Check for [, parse arbitrary root
-            } else {
-                ops.push(tok);
-                advance();
-                parseExpr();
-                if (tok != "]") { mismatchError("sqrt", "]"); }
-                advance();
-            }
-            // Check for required {, parse argument
-            if (tok !=  "{") { mismatchError("sqrt", "{"); }
-            ops.push(tok);
-            advance();
-            parseExpr();
-            // Check for matching }
-            if (tok !=  "}") { mismatchError("sqrt", "}"); }
-            advance();
-        }
-
-        void parseLnLg() {
-            // Push ln/log onto stack
-            ops.push(tok);
-            advance();
-            // Check for required {, parse argument
-            if (tok !=  "{") { mismatchError("ln/lg", "{"); }
-            ops.push(tok);
-            advance();
-            parseExpr();
-            // Check for matching }
-            if (tok !=  "{") { mismatchError("ln/lg", "}"); }
-            advance();
-        }
-
-        void parseLog() {
-            // Push log onto stack
-            ops.push(tok);
-            advance();
-            // Check for optional base
-            if (tok != "_") { 
-                operands.push(new Num(10)); // Implicit base 10 log
-            } else {
-                advance();
-                // Check for required {, parse arbitrary base
-                if (tok != "{") { mismatchError("log", "{"); }
-                ops.push(tok);
-                advance();
-                parseExpr();
-                // Check for matching }
-                if (tok != "}") { mismatchError("log", "}"); }
-                advance();
-            }
-            // Check for required {, parse argument
-            if (tok != "{") { mismatchError("log", "{"); }
-            ops.push(tok);
-            advance();
-            parseExpr();
-            // Check for matching }
-            if (tok != "}") { mismatchError("log", "}"); }
-            advance();
-        }
-
-        void parseExpr() {
-            if (it == end) {
-
-            } else if (isDouble(tok)) {
-                parseNum();
-                return;
-            } else if (tok == "frac") {
-                parseFrac();
-                return;
-            } else if (trig.count(tok)) {
-                parseTrig();
-                return;
-            } else if (tok == "sqrt") {
-                parseSqrt();
-                return;
-            } else if (tok == "ln" || tok == "lg") {
-                parseLnLg();
-                return;
-            } else if (tok == "log") {
-                parseLog();
-                return;
-            } else if (tok == ")" || tok == "}" || tok == "]") {
-                if (tok == ")") {
-                    while (!ops.empty() && ops.top() != "(") {
-                        popOp();
-                    }
-                    if (ops.top() != "(") {
-                        throw std::runtime_error("parsing error: mismatched paren");
-                    }
-                } else if (tok == "}") {
-                    while (!ops.empty() && ops.top() != "{") {
-                        popOp();
-                    }
-                    if (ops.top() != "{") {
-                        throw std::runtime_error("parsing error: mismatched brace");
-                    }
-                } else if (tok == "]") {
-                    while (!ops.empty() && ops.top() != "[") {
-                        popOp();
-                    }
-                    if (ops.top() != "[") {
-                        throw std::runtime_error("parsing error: mismatched bracket");
-                    }
-                }
-                return;
-            }
-        }
-
-    public:
-        Parser(std::vector<std::string> tokens) : it(tokens.begin()),
-        end(tokens.end()) {}
-
-        Expr* parse() {
-            parseExpr();
-        }
 };
